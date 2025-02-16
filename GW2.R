@@ -1,13 +1,17 @@
+# Team Member: Ambuj Sahu, Inwoo Lee, Shiv Anand Chhabria
+
 library(faraway)
 library(ggplot2)
 library(dplyr)
 library(tidyverse)
 library(nnet)
 
-?pneumo
+
 ###############
 ##### A. Make a plot showing how the proportion on miners in the three categories at each year 
 # point varies over time. Comment on the relationship.
+
+attach(pneumo)
 
 pneumo_wide <- pneumo |> 
   pivot_wider(names_from = status, values_from = Freq) |> 
@@ -30,7 +34,9 @@ ggplot(pneumo, aes(year, proportion, group = status, color = status)) +
 pneumo$status <- relevel(factor(pneumo$status), ref = "normal")
 
 m1 = multinom(status ~ Freq + year, pneumo)
-summary(m1)
+m1_step <- step(m1, trace = 0)
+m1_step$call
+summary(m1_step)
 
 # Coefficient of year on severe is -0.703 which means that for each additional year, 
 # the log-odds of being in the severe category (relative to normal) decrease by 0.703.
@@ -48,6 +54,21 @@ summary(pneumo)
 ###############
 ###### D. What is the probability that an individual will have a severe condition after working for 31 years?
 
+result <- predict(m1_step, data.frame(Freq = mean(pneumo$Freq), year = 31), type = "probs")
+print(result)
+
+# The probability that an individual will have a severe condition after working for 31 years is 67.37% 
+
 ###### E. Produce a plot of the predicted probabilities in the same format as part A.
+qyear_25 <- quantile(pneumo$year, 0.25)
+qyear_75 <- quantile(pneumo$year, 0.75)
 
+ylevels = round(qyear_25):round(qyear_75)
 
+preds = data.frame(year=ylevels,
+                   predict(m1_step, data.frame(Freq = mean(pneumo$Freq), year=ylevels),type="probs"))
+
+lpred = pivot_longer(preds, cols = -year, names_to = "status", values_to = "probability")
+
+ggplot(lpred, aes(year, probability, group = status, color = status)) +
+  geom_line()
